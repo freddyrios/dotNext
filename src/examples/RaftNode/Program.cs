@@ -86,18 +86,24 @@ static async Task UseConfiguration(RaftCluster.NodeConfiguration config, string?
     {
         var builder = storage.CreateActiveConfigurationBuilder();
 
-        var address = new IPEndPoint(IPAddress.Loopback, 3262);
+        var address = GetNodeEndpoint("node1");
         builder.Add(ClusterMemberId.FromEndPoint(address), address);
 
-        address = new(IPAddress.Loopback, 3263);
+        address = GetNodeEndpoint("node2");
         builder.Add(ClusterMemberId.FromEndPoint(address), address);
 
-        address = new(IPAddress.Loopback, 3264);
+        address = GetNodeEndpoint("node3");
         builder.Add(ClusterMemberId.FromEndPoint(address), address);
 
         builder.Build();
     }
 }
+
+static IPEndPoint GetNodeEndpoint(string persistentStorage) =>
+    persistentStorage == "node1" ? IPEndPoint.Parse("169.254.241.37:3262")
+    : persistentStorage == "node2" ? IPEndPoint.Parse("169.254.148.198:3262")
+    : persistentStorage == "node3" ? IPEndPoint.Parse("169.254.105.52:3262")
+    : throw new ArgumentException("unknown node");
 
 static Task UseUdpTransport(int port, string? persistentStorage)
 {
@@ -113,12 +119,12 @@ static Task UseUdpTransport(int port, string? persistentStorage)
 
 static Task UseTcpTransport(int port, string? persistentStorage, bool useSsl)
 {
-    var configuration = new RaftCluster.TcpConfiguration(new IPEndPoint(IPAddress.Loopback, port))
+    var configuration = new RaftCluster.TcpConfiguration(GetNodeEndpoint(persistentStorage ?? throw new NotSupportedException("missing persistentStorage")))
     {
         ConnectTimeout = 50,
-        LowerElectionTimeout = 150,
-        UpperElectionTimeout = 300,
-        TransmissionBlockSize = 4096,
+        LowerElectionTimeout = 300,
+        UpperElectionTimeout = 600,
+        TransmissionBlockSize = 4096 * 1000,
         ColdStart = false,
         SslOptions = useSsl ? CreateSslOptions() : null
     };
